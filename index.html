@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>MeldCX AgentM: Card Reader Simplified RFID Interface</title>
+
+    <!-- I am just here to make the code examples look pretty :) -->
+    <link rel="stylesheet" href="prism.css">
+
+    <!-- Include our MeldCX Agent Library :) -->
+    <script src="https://storage.googleapis.com/assets.meld.cx/agent/1.0.18/Agent.js"></script>
+</head>
+<body>
+    <fieldset>
+        <legend>MeldCX AgentM: Card Reader Simplified RFID Interface</legend>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 10px; text-align: left;">
+                <div>
+                    <button>Toggle Lock</button>
+                </div>
+                <div>Lock State is: <strong class="lockState">Unknown</strong>&nbsp;<button>Get Lock State</button></div>
+                <div>
+                    <pre><code class="language-js">window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.lock()
+.then(() => console.log('Locked'))
+.catch(ex => {
+    console.error('Failed to Lock');
+    console.error(ex);
+});</code></pre>
+                </div>
+                <div>
+                    <pre><code class="language-js">window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.isLocked()
+.then(isLocked => console.log(
+    isLocked 
+        ? 'The latch is locked'
+        : 'The latch is not locked'))
+.catch(ex => {
+    console.error('Failed to query lock state');
+    console.error(ex);
+});</code></pre>
+                </div>
+                <div>
+                    <button>Read</button>
+                </div>
+                <div>
+                    <table border="1">
+                        <tbody>
+                            <tr>
+                                <td width="25%"><b>Type</b></td>
+                                <td><strong></strong></td>
+                            </tr>
+                            <tr>
+                                <td><b>Capacity</b></td>
+                                <td><strong></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="grid-column: span 2; text-align: center; border: 1px solid black;">
+                    <table border="1" width="100%">
+                        <thead>
+                            <tr>
+                                <th>Sector</th>
+                                <th>Block</th>
+                                <th>0x00 - 0x0F</th>
+                                <th>0x10 - 0x1F</th>
+                                <th colspan="4">Access</th>
+                            </tr>
+                        </thead>
+                        <tbody class="dataBody">
+
+                        </tbody>
+                    </table>
+                </div>
+                <div class="inputdataFields">
+
+                </div>
+                <div>
+                    <label for="sector">Sector</label>
+                    <select name="sector" disabled></select>
+                    &nbsp;
+                    <label for="block">Block</label>
+                    <select name="block" disabled></select>
+                    &nbsp;
+                    <button>Write</button>
+                </div>
+        </div>
+    </fieldset>
+    <script>
+        const [btnToggleLock, btnGetLockState, btnRead, btnWrite] = document.querySelectorAll('button');
+        const [strIsLocked, strType, strCapacity] = document.querySelectorAll('strong');
+        const [lstSector, lstBlock] = document.querySelectorAll('select');
+        const dataBody = document.querySelector('.dataBody');
+
+        let lockedState = null;
+
+        const renderData = data => {
+            strType.textContent = data.type;
+            strCapacity.textContent = data.capacity;
+
+            dataBody.innerHTML = '';
+
+            for (const sector of data.payload.sectors) {
+                for (const block of sector.blocks) {
+                    const tr = document.createElement('tr');
+                    const [tdSec, tdBlk, tdData1, tdData2, tdAccess] = Array.from({length: 5}).map(() => document.createElement('td'));
+    
+                    tdSec.textContent = sector.index;
+                    tdBlk.textContent = block.index;
+                    tdData1.textContent = block.data.slice(0, 8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
+                    tdData2.textContent = block.data.slice(8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
+                    tdAccess.textContent = Object.entries(block.access).reduce((a, [k, v]) => {
+                        if (v) a.push(k.toUpperCase().slice(0, 1));
+
+                        return a;
+                    }, []).join(' ');
+
+                    tr.appendChild(tdSec);
+                    tr.appendChild(tdBlk);
+                    tr.appendChild(tdData1);
+                    tr.appendChild(tdData2);
+                    tr.appendChild(tdAccess);
+
+                    dataBody.appendChild(tr);
+                }
+            }
+        };
+
+        const getLockedState = () => {
+            console.log('Get Lock/Latch State');
+            window.Agent.onReadyAsync()
+                .then(() => window.Agent)
+                .then(agent => agent.RFID.isLocked())
+                .then(isLocked => {
+                    lockedState = isLocked;
+
+                    strIsLocked.textContent = isLocked ? 'Locked' : 'Unlocked';
+
+                    console.log(isLocked 
+                        ? 'The latch is locked'
+                        : 'The latch is not locked')
+                })
+                .catch(console.error);
+        };
+
+        const toggleLock = () => {
+            console.log('Toggle Lock');
+            window.Agent.onReadyAsync()
+                .then(() => window.Agent)
+                .then(agent => lockedState ? agent.RFID.unlock() : agent.RFID.lock())
+                .then(() => getLockedState())
+                .catch(console.error);
+        };
+
+        const getData = () => {
+            console.log('Getting Data');
+            window.Agent.onReadyAsync()
+                .then(() => window.Agent)
+                .then(agent => agent.RFID.read())
+                .then(data => {
+                    lstSector.innerHTML = '';
+                    lstBlock.innerHTML = '';
+
+                    let sectors = 32;
+
+                    if (data.type === 'MIFARE_CLASSIC_4K') sectors = 39;
+
+                    for (let i = 0; i < sectors; i += 1) {
+                        const opt = document.createElement('option');
+
+                        opt.value = i;
+                        opt.textContent = i;
+
+                        opt
+
+                        lstSector.appendChild(opt);
+                    }
+
+                    lstSector.onchange = () => {
+                        lstBlock.innerHTML = '';
+
+                        let blocks = 4;
+                        if (i >= 32) {
+                            blocks = 16;
+                        }
+
+                        for (let b = 0; b < blocks; b += 1) {
+                            const bopt = document.createElement('option');
+
+                            bopt.value = b;
+                            bopt.textContent = b;
+
+                            lstBlock.appendChild(bopt);
+                        }
+                    }
+
+                    for (let b = 0; b < 4; b += 1) {
+                        const bopt = document.createElement('option');
+
+                        bopt.value = b;
+                        bopt.textContent = b;
+
+                        lstBlock.appendChild(bopt);
+                    }
+
+                    lstSector.disabled = false;
+                    lstBlock.disabled = false;
+
+                    renderData(data);
+                })
+                .catch (console.error);
+        };
+
+        const writeData = () => {
+
+        };
+
+        btnRead.onclick = () => getData();
+        btnWrite.onclick = () => writeData();
+        btnToggleLock.onclick = () => toggleLock();
+        btnGetLockState.onclick = () => getLockedState();
+
+        getLockedState();
+        getData();
+
+        const inputdataFields = document.querySelector('.inputdataFields');
+
+        for (let i = 0; i < 16; i += 1) {
+            const slct = document.createElement('select');
+            slct.classList.add(`input${i}`);
+
+            for (let o = 0; o <= 0xFF; o += 1) {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
+
+                slct.appendChild(opt);
+            }
+
+            if (i === 8) inputdataFields.appendChild(document.createElement('br'));
+
+            inputdataFields.appendChild(slct);
+        }
+    </script>
+
+    <!-- I am just here to make the code examples look pretty :) -->
+    <script src="prism.js"></script>
+    <br>
+    &copy;&nbsp;MeldCX Pty Ltd 2019
+</body>
+</html>
