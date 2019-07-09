@@ -6,11 +6,21 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>MeldCX AgentM: Card Reader Simplified RFID Interface</title>
 
-    <!-- I am just here to make the code examples look pretty :) -->
-    <link rel="stylesheet" href="prism.css">
-
-    <!-- Include our MeldCX Agent Library :) -->
+    <!-- Include our MeldCX Agent Library 🤣! -->
     <script src="https://storage.googleapis.com/assets.meld.cx/agent/1.0.18/Agent.js"></script>
+
+    <!-- I am just here to make the code examples look pretty 😉 -->
+    <link rel="stylesheet" href="prism.css">
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+    </style>
+    
+    <!-- JQuery and Toast 🍞 😀 -->
+    <link rel="stylesheet" href="jquery.toast.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript" src="jquery.toast.min.js"></script>
 </head>
 <body>
     <fieldset>
@@ -21,25 +31,60 @@
                 </div>
                 <div>Lock State is: <strong class="lockState">Unknown</strong>&nbsp;<button>Get Lock State</button></div>
                 <div>
-                    <pre><code class="language-js">window.Agent.onReadyAsync()
+                    <pre><code class="language-js">// Lock the latch
+window.Agent.onReadyAsync()
 .then(() => window.Agent)
-.then(agent => agent.RFID.lock()
+.then(agent => agent.RFID.lock())
 .then(() => console.log('Locked'))
 .catch(ex => {
     console.error('Failed to Lock');
     console.error(ex);
+});
+
+// Unlock the latch
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.unlock())
+.then(() => console.log('Unlocked'))
+.catch(ex => {
+    console.error('Failed to Unlock');
+    console.error(ex);
 });</code></pre>
                 </div>
                 <div>
-                    <pre><code class="language-js">window.Agent.onReadyAsync()
+                    <pre><code class="language-js">// Query lock state
+window.Agent.onReadyAsync()
 .then(() => window.Agent)
-.then(agent => agent.RFID.isLocked()
+.then(agent => agent.RFID.isLocked())
 .then(isLocked => console.log(
     isLocked 
         ? 'The latch is locked'
         : 'The latch is not locked'))
 .catch(ex => {
     console.error('Failed to query lock state');
+    console.error(ex);
+});</code></pre>
+                </div>
+                <div>
+                    &nbsp;
+                </div>
+                <div>
+                    Card is <strong class="cardState">Unknown</strong>&nbsp;<button>Query Card Present</button>
+                </div>
+                <div>
+                    &nbsp;
+                </div>
+                <div>
+                    <pre><code class="language-js">// Query Card Present
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.isCardPresent())
+.then(isCardPresent => console.log(
+    isCardPresent 
+        ? 'The card is present'
+        : 'The card is not present'))
+.catch(ex => {
+    console.error('Failed to query card state');
     console.error(ex);
 });</code></pre>
                 </div>
@@ -55,6 +100,14 @@
                             </tr>
                             <tr>
                                 <td><b>Capacity</b></td>
+                                <td><strong></strong></td>
+                            </tr>
+                            <tr>
+                                <td><b>NUID</b></td>
+                                <td><strong></strong></td>
+                            </tr>
+                            <tr>
+                                <td><b>UID</b></td>
                                 <td><strong></strong></td>
                             </tr>
                         </tbody>
@@ -76,23 +129,94 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="inputdataFields">
-
-                </div>
                 <div>
-                    <label for="sector">Sector</label>
-                    <select name="sector" disabled></select>
-                    &nbsp;
-                    <label for="block">Block</label>
-                    <select name="block" disabled></select>
-                    &nbsp;
-                    <button>Write</button>
+                        <pre><code class="language-js">//Read Data from Card
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.read([
+    {
+        index: 0,
+        keys: { a: [0, 0, 0, 0, 0, 0] }
+    }
+]))
+.then(result => {
+    console.log('NUID', result.nuid);
+    console.log('UID', result.uid);
+    console.log('Capacity', result.capacity);
+
+    console.log('Sectors');
+    for (const sector of result.payload.sectors) {
+        console.log('\tSector', sector.index);
+        console.log('\t\tBlocks:');
+    
+        for (const block of sector.blocks) {
+            console.log(
+                '\t\t\tBlock',
+                block.index,
+                block.type,
+                JSON.stringify(block.data),
+                JSON.stringify(block.access));
+        }
+    }
+})
+.catch(ex => {
+    console.error('Failed to read card data');
+    console.error(ex);
+});</code></pre>
+            </div>
+            <div></div>
+            <div>
+                <strong>Data</strong>
+                <div class="inputdataFields">
+    
                 </div>
+                <br/>
+                <strong>Key A</strong>
+                <div class="inputkeyAFields">
+    
+                </div>
+                <br/>
+                <strong>Key B</strong>
+                <div class="inputkeyBFields">
+    
+                </div>
+            </div>
+            <div>
+                <label for="sector">Sector</label>
+                <select name="sector" disabled></select>
+                &nbsp;
+                <label for="block">Block</label>
+                <select name="block" disabled></select>
+                &nbsp;
+                <button>Write</button>
+            </div>
+            <div>
+                    <pre><code class="language-js">// Write Data to Card
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.write({
+    sectors: [
+        {
+            index: 1,
+            keys: { a: [0, 0, 0, 0, 0, 0] },
+            blocks: [
+                { index: 0, data: [4,3,2,1] }
+            ]
+        }
+    ]
+}))
+.then(() => console.log('Wrote to card successfully'))
+.catch(ex => {
+    console.error('Failed to read card data');
+    console.error(ex);
+});</code></pre>
+            </div>
+            <div></div>
         </div>
     </fieldset>
     <script>
-        const [btnToggleLock, btnGetLockState, btnRead, btnWrite] = document.querySelectorAll('button');
-        const [strIsLocked, strType, strCapacity] = document.querySelectorAll('strong');
+        const [btnToggleLock, btnGetLockState, btnGetCardState, btnRead, btnWrite] = document.querySelectorAll('button');
+        const [strIsLocked, strCardState, strType, strCapacity, strNUID, strUID] = document.querySelectorAll('strong');
         const [lstSector, lstBlock] = document.querySelectorAll('select');
         const dataBody = document.querySelector('.dataBody');
 
@@ -101,6 +225,8 @@
         const renderData = data => {
             strType.textContent = data.type;
             strCapacity.textContent = data.capacity;
+            strUID.textContent = data.uid;
+            strNUID.textContent = data.nuid;
 
             dataBody.innerHTML = '';
 
@@ -111,6 +237,7 @@
     
                     tdSec.textContent = sector.index;
                     tdBlk.textContent = block.index;
+
                     tdData1.textContent = block.data.slice(0, 8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
                     tdData2.textContent = block.data.slice(8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
                     tdAccess.textContent = Object.entries(block.access).reduce((a, [k, v]) => {
@@ -144,7 +271,18 @@
                         ? 'The latch is locked'
                         : 'The latch is not locked')
                 })
-                .catch(console.error);
+                .catch(ex => {
+                    console.error('An error occured when getting lock state');
+                    console.error(ex);
+
+                    $.toast({
+                        text: `<b>Error occured when getting lock status</b><br>${ex.toString().slice(0, 100)}`,
+                        bgColor: 'red',
+                        textColor: '#000',
+                        hideAfter : 15000,
+                        icon: 'error'
+                    });
+                });
         };
 
         const toggleLock = () => {
@@ -153,14 +291,25 @@
                 .then(() => window.Agent)
                 .then(agent => lockedState ? agent.RFID.unlock() : agent.RFID.lock())
                 .then(() => getLockedState())
-                .catch(console.error);
+                .catch(ex => {
+                    console.error('An error occured when toggling lock');
+                    console.error(ex);
+
+                    $.toast({
+                        text: `<b>Error occured when toggling lock</b><br>${ex.toString().slice(0, 100)}`,
+                        bgColor: 'red',
+                        textColor: '#000',
+                        hideAfter : 15000,
+                        icon: 'error'
+                    });
+                });
         };
 
         const getData = () => {
             console.log('Getting Data');
             window.Agent.onReadyAsync()
                 .then(() => window.Agent)
-                .then(agent => agent.RFID.read())
+                .then(agent => agent.RFID.read(Array.from({length: 16}).map((_, i) => ({index: i, keys: {a: [0, 0, 0, 0, 0, 0]}}))))
                 .then(data => {
                     lstSector.innerHTML = '';
                     lstBlock.innerHTML = '';
@@ -212,19 +361,100 @@
 
                     renderData(data);
                 })
-                .catch (console.error);
+                .catch (ex => {
+                    console.error('An error occured when getting data')
+                    $.toast({
+                        text: `<b>Error occured when getting card data</b><br>${ex.toString().slice(0, 100)}`,
+                        bgColor: 'red',
+                        textColor: '#000',
+                        hideAfter : 15000,
+                        icon: 'error'
+                    });
+                });
         };
 
         const writeData = () => {
+            const data = [...document.querySelectorAll('.inputdataFields > select')]
+                .map(i => i.value).map(i => parseInt(i, 10));
 
+            const a = [...document.querySelectorAll('.inputkeyAFields > select')]
+                .map(i => i.value).map(i => parseInt(i, 10));
+
+            const b = [...document.querySelectorAll('.inputkeyBFields > select')]
+                .map(i => i.value).map(i => parseInt(i, 10));
+
+            const sector = parseInt(lstSector.value, 10);
+            const block = parseInt(lstBlock.value, 10);
+            const keys = {a, b};
+
+            window.Agent.onReadyAsync()
+                .then(() => window.Agent)
+                .then(agent => agent.RFID.write({
+                    sectors: [
+                        {
+                            index: sector,
+                            blocks: [
+                                {
+                                    index: block,
+                                    data
+                                }
+                            ],
+                            keys
+                        }
+                    ]
+                }))
+                .then(() => {
+                    getData();
+
+                    $.toast({
+                        text: `<b>Successfully wrote card data</b>`,
+                        bgColor: 'green',
+                        textColor: '#fff',
+                        hideAfter : 15000,
+                        icon: 'success'
+                    });
+                })
+                .catch(ex => {
+                    console.error('Error occured when writing data');
+                    console.error(ex);
+
+                    $.toast({
+                        text: `<b>Error occured when getting card state</b><br>${ex.toString().slice(0, 100)}`,
+                        bgColor: 'red',
+                        textColor: '#000',
+                        hideAfter : 15000,
+                        icon: 'error'
+                    });
+                });
         };
+
+        const getCardState = () => window.Agent.onReadyAsync()
+            .then(() => window.Agent)
+            .then(agent => agent.RFID.isCardPresent())
+            .then(cardPresent => { 
+                strCardState.textContent = cardPresent
+                    ? 'present'
+                    : 'not present'
+            })
+            .catch(ex => {
+                console.error('Error occured when getting card state');
+                console.error(ex);
+                $.toast({
+                    text: '<b>Error occured when getting card state</b>',
+                    bgColor: 'red',
+                    textColor: '#000',
+                    icon: 'error'
+                });
+            });
 
         btnRead.onclick = () => getData();
         btnWrite.onclick = () => writeData();
         btnToggleLock.onclick = () => toggleLock();
+        btnGetCardState.onclick = () => getCardState();
         btnGetLockState.onclick = () => getLockedState();
 
         getLockedState();
+        getCardState();
         getData();
 
         const inputdataFields = document.querySelector('.inputdataFields');
@@ -245,9 +475,43 @@
 
             inputdataFields.appendChild(slct);
         }
+
+        const inputkeyAFields = document.querySelector('.inputkeyAFields');
+
+        for (let i = 0; i < 6; i += 1) {
+            const slct = document.createElement('select');
+            slct.classList.add(`input${i}`);
+
+            for (let o = 0; o <= 0xFF; o += 1) {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
+
+                slct.appendChild(opt);
+            }
+
+            inputkeyAFields.appendChild(slct);
+        }
+
+        const inputkeyBFields = document.querySelector('.inputkeyBFields');
+
+        for (let i = 0; i < 6; i += 1) {
+            const slct = document.createElement('select');
+            slct.classList.add(`input${i}`);
+
+            for (let o = 0; o <= 0xFF; o += 1) {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
+
+                slct.appendChild(opt);
+            }
+
+            inputkeyBFields.appendChild(slct);
+        }
     </script>
 
-    <!-- I am just here to make the code examples look pretty :) -->
+    <!-- I am just here to make the code examples look pretty 🦄 -->
     <script src="prism.js"></script>
     <br>
     &copy;&nbsp;MeldCX Pty Ltd 2019
