@@ -189,6 +189,19 @@ window.Agent.onReadyAsync()
                 <select name="block" disabled></select>
                 &nbsp;
                 <button>Write</button>
+                <fieldset>
+                    <legend>Update Keys</legend>
+                    <br/>
+                    <strong>Key A</strong>
+                    <div class="inputupdatekeyAFields">
+        
+                    </div>
+                    <br/>
+                    <strong>Key B</strong>
+                    <div class="inputupdatekeyBFields">
+        
+                    </div>
+                </fieldset>
             </div>
             <div>
                     <pre><code class="language-js">// Write Data to Card
@@ -198,10 +211,12 @@ window.Agent.onReadyAsync()
     sectors: [
         {
             index: 1,
-            keys: { a: [0, 0, 0, 0, 0, 0] },
+            keys: { a: [0, 0, 0, 0, 0, 0] }, // Key required to read or write.
             blocks: [
                 { index: 0, data: [4,3,2,1] }
-            ]
+            ],
+            updateKeys: { a: [1, 2, 3, 4, 5, 6] }, // Optional update the key.
+            access: {read: true, write: true, increment: true, decrement: true} // Optional update the access.
         }
     ]
 }))
@@ -211,7 +226,19 @@ window.Agent.onReadyAsync()
     console.error(ex);
 });</code></pre>
             </div>
-            <div></div>
+            <div>
+                <pre><code class="language-js">// Listen for Connected/Disconnected events
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => {
+    agent.RFID.onDisconnected(() => console.log('Disconnected'));
+    agent.RFID.onConnected(() => console.log('Connected'));
+})
+.catch(ex => {
+    console.error('Failed to add connected/disconnected event listeners');
+    console.error(ex);
+});</code></pre>
+            </div>
         </div>
     </fieldset>
     <script>
@@ -329,11 +356,11 @@ window.Agent.onReadyAsync()
                         lstSector.appendChild(opt);
                     }
 
-                    lstSector.onchange = () => {
+                    lstSector.onchange = ({target: {value}}) => {
                         lstBlock.innerHTML = '';
 
                         let blocks = 4;
-                        if (i >= 32) {
+                        if (parseInt(value) >= 32) {
                             blocks = 16;
                         }
 
@@ -386,6 +413,10 @@ window.Agent.onReadyAsync()
             const sector = parseInt(lstSector.value, 10);
             const block = parseInt(lstBlock.value, 10);
             const keys = {a, b};
+            const updateKeys = {
+                a: [...document.querySelectorAll('.inputupdatekeyAFields > select')].map(i => i.value).map(i => parseInt(i, 10)),
+                b: [...document.querySelectorAll('.inputupdatekeyBFields > select')].map(i => i.value).map(i => parseInt(i, 10))
+            };
 
             window.Agent.onReadyAsync()
                 .then(() => window.Agent)
@@ -399,7 +430,8 @@ window.Agent.onReadyAsync()
                                     data
                                 }
                             ],
-                            keys
+                            keys,
+                            updateKeys
                         }
                     ]
                 }))
@@ -509,6 +541,62 @@ window.Agent.onReadyAsync()
 
             inputkeyBFields.appendChild(slct);
         }
+
+        const inputupdatekeyAFields = document.querySelector('.inputupdatekeyAFields');
+
+        for (let i = 0; i < 6; i += 1) {
+            const slct = document.createElement('select');
+            slct.classList.add(`input${i}`);
+
+            for (let o = 0; o <= 0xFF; o += 1) {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
+
+                slct.appendChild(opt);
+            }
+
+            inputupdatekeyAFields.appendChild(slct);
+        }
+
+        const inputupdatekeyBFields = document.querySelector('.inputupdatekeyBFields');
+
+        for (let i = 0; i < 6; i += 1) {
+            const slct = document.createElement('select');
+            slct.classList.add(`input${i}`);
+
+            for (let o = 0; o <= 0xFF; o += 1) {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
+
+                slct.appendChild(opt);
+            }
+
+            inputupdatekeyBFields.appendChild(slct);
+        }
+
+        window.Agent.onReadyAsync()
+            .then(() => window.Agent)
+            .then(agent => {
+                agent.RFID.onConnected(() => {
+                    $.toast({
+                        text: '<b>RFID Device Connected</b>',
+                        bgColor: 'green',
+                        textColor: '#fff',
+                        icon: 'success'
+                    });
+                });
+
+                agent.RFID.onDisconnected(() => {
+                    $.toast({
+                        text: '<b>RFID Device Disconnected</b>',
+                        bgColor: 'red',
+                        textColor: '#fff',
+                        icon: 'error'
+                    });
+                });
+            });
     </script>
 
     <!-- I am just here to make the code examples look pretty 🦄 -->
