@@ -222,7 +222,7 @@ window.Agent.onReadyAsync()
 }))
 .then(() => console.log('Wrote to card successfully'))
 .catch(ex => {
-    console.error('Failed to read card data');
+    console.error('Failed to write card data');
     console.error(ex);
 });</code></pre>
             </div>
@@ -240,9 +240,23 @@ window.Agent.onReadyAsync()
 });</code></pre>
             </div>
         </div>
+        <div>
+            <button>Reset</button>
+        </div>
+        <div>
+                <pre><code class="language-js">// Toggle device Reset
+window.Agent.onReadyAsync()
+.then(() => window.Agent)
+.then(agent => agent.RFID.reset() && console.log('Device reset requested'))
+.then(() => console.log('Device reset completed'))
+.catch(ex => {
+    console.error('Failed to reset the device');
+    console.error(ex);
+});</code></pre>
+        </div>
     </fieldset>
     <script>
-        const [btnToggleLock, btnGetLockState, btnGetCardState, btnRead, btnWrite] = document.querySelectorAll('button');
+        const [btnToggleLock, btnGetLockState, btnGetCardState, btnRead, btnWrite, btnReset] = document.querySelectorAll('button');
         const [strIsLocked, strCardState, strType, strCapacity, strNUID, strUID] = document.querySelectorAll('strong');
         const [lstSector, lstBlock] = document.querySelectorAll('select');
         const dataBody = document.querySelector('.dataBody');
@@ -479,8 +493,18 @@ window.Agent.onReadyAsync()
                 });
             });
 
+        const reset = () => window.Agent.onReadyAsync()
+            .then(() => window.Agent)
+            .then(agent => agent.RFID.reset() && console.log('Device reset requested'))
+            .then(() => console.log('Device reset completed'))
+            .catch(ex => {
+                console.error('Failed to reset the device');
+                console.error(ex);
+            });
+
         btnRead.onclick = () => getData();
         btnWrite.onclick = () => writeData();
+        btnReset.onclick = () => reset();
         btnToggleLock.onclick = () => toggleLock();
         btnGetCardState.onclick = () => getCardState();
         btnGetLockState.onclick = () => getLockedState();
