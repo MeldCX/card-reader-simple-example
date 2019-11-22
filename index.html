@@ -209,18 +209,16 @@ window.Agent.onReadyAsync()
                     <pre><code class="language-js">// Write Data to Card
 window.Agent.onReadyAsync()
 .then(() => window.Agent)
-.then(agent => agent.RFID.write({
-    sectors: [
-        {
-            index: 1,
-            keys: { a: [0, 0, 0, 0, 0, 0] }, // Key required to read or write.
-            blocks: [
-                { index: 0, data: [4,3,2,1] }
-            ],
-            updateKeys: { a: [1, 2, 3, 4, 5, 6] }, // Optional update the key.
-        }
-    ]
-}))
+.then(agent => agent.RFID.write([
+    {
+        index: 1,
+        keys: { a: [0, 0, 0, 0, 0, 0] }, // Key required to read or write.
+        blocks: [
+            { index: 0, data: [4,3,2,1] }
+        ],
+        updateKeys: { a: [1, 2, 3, 4, 5, 6] }, // Optional update the key.
+    }
+])
 .then(() => console.log('Wrote to card successfully'))
 .catch(ex => {
     console.error('Failed to read card data');
@@ -250,38 +248,7 @@ window.Agent.onReadyAsync()
 
         let lockedState = null;
 
-        const log = msg => {
-            const div = document.createElement('div');
-            div.innerHTML = JSON.stringify(msg, null, 4);
-
-            document.querySelector('.logs').appendChild(div);
-        };
-
-        window.Agent.onReadyAsync()
-            .then(() => window.Agent)
-            .then(async(agent) => {
-                await window.Agent.App.disableScheduler();
-
-                const {displayId} = window.Agent;
-                const windowName = `Window-${displayId}`;
-                console.warn(windowName);
-                const Webview = window.Agent.Webview.Manager[windowName];
-                const webviews = await Webview.getWebviews();
-                const currentWebview = webviews.find(({origin}) => origin === window.location.origin);
-
-                await Webview.setWebviewConfiguration(currentWebview.id, {url: window.location.href, visible: true, height: '50%'});
-                await Webview.draw(currentWebview.id);
-
-                const wid = await Webview.create({url: 'http://127.0.0.1:9089/', top: '50%', height: '50%', zIndex: 100, visible: true});
-                console.warn(wid);
-                
-                log(JSON.stringify(Object.keys(window.Agent.Peripherals.Syncotek.SK288K001)));
-
-                log('Event handlers done');
-            });
-
         const renderAccess = access => {
-            log({access});
             const table = document.createElement('table');
             for (const [name, value] of Object.entries(access)) {
                 const tr = document.createElement('tr');
@@ -441,21 +408,19 @@ window.Agent.onReadyAsync()
 
             window.Agent.onReadyAsync()
                 .then(() => window.Agent)
-                .then(agent => agent.RFID.write({
-                    sectors: [
-                        {
-                            index: sector,
-                            blocks: [
-                                {
-                                    index: block,
-                                    data
-                                }
-                            ],
-                            keys,
-                            updateKeys
-                        }
-                    ]
-                }))
+                .then(agent => agent.RFID.write([
+                    {
+                        index: sector,
+                        blocks: [
+                            {
+                                index: block,
+                                data
+                            }
+                        ],
+                        keys,
+                        updateKeys
+                    }
+                ]))
                 .then(() => {
                     getData();
 
@@ -501,25 +466,17 @@ window.Agent.onReadyAsync()
             });
 
         btnRead.onclick = () => getData();
-        btnWrite.onclick = async() => {
-
-        };
+        btnWrite.onclick = async() => writeData();
         btnToggleLock.onclick = () => toggleLock();
         btnGetCardState.onclick = () => getCardState();
         btnGetLockState.onclick = () => getLockedState();
 
-        // getLockedState();
-        // getCardState();
-        // getData();
-
         const sleep = (timeout, ab) => new Promise(resolve => setTimeout(() => resolve(ab), timeout));
         window.Agent.onReadyAsync()
             .then(() => window.Agent)
-            .then(agent => { log('Reading'); return agent.RFID.read(undefined, undefined, 'arraybuffer'); })
-            .then(ab => { log('Got ' + ab.byteLength + 'bytes of data'); return sleep(5000, ab); })
-            .then(ab => { log('Writing'); return window.Agent.RFID.write(ab, undefined, 'arraybuffer'); })
-            .then(() => log('Done Writing'))
-            .catch(ex => log(ex.toString() + ' ' + ex.stack && ex.stack.toString()))
+            .then(agent => agent.RFID.read(undefined, undefined, 'arraybuffer'))
+            .then(ab => sleep(5000, ab))
+            .then(ab => window.Agent.RFID.write(ab, undefined, 'arraybuffer'))
 
         const inputdataFields = document.querySelector('.inputdataFields');
 
