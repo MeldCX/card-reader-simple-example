@@ -7,7 +7,7 @@
     <title>MeldCX AgentM: Card Reader Simplified RFID Interface</title>
 
     <!-- Include our MeldCX Agent Library 🤣! -->
-    <script src="https://storage.googleapis.com/assets.meld.cx/agent/1.0.18/Agent.js"></script>
+    <script src="https://storage.googleapis.com/assets.meld.cx/agent/1.0.38/Agent.js"></script>
 
     <!-- I am just here to make the code examples look pretty 😉 -->
     <link rel="stylesheet" href="prism.css">
@@ -23,6 +23,7 @@
     <script type="text/javascript" src="jquery.toast.min.js"></script>
 </head>
 <body>
+    <div class="logs"></div>
     <fieldset>
         <legend>MeldCX AgentM: Card Reader Simplified RFID Interface</legend>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 10px; text-align: left;">
@@ -90,6 +91,7 @@ window.Agent.onReadyAsync()
                 </div>
                 <div>
                     <button>Read</button>
+                    <button>Cancel</button>
                 </div>
                 <div>
                     <table border="1">
@@ -216,13 +218,12 @@ window.Agent.onReadyAsync()
                 { index: 0, data: [4,3,2,1] }
             ],
             updateKeys: { a: [1, 2, 3, 4, 5, 6] }, // Optional update the key.
-            access: {read: true, write: true, increment: true, decrement: true} // Optional update the access.
         }
     ]
 }))
 .then(() => console.log('Wrote to card successfully'))
 .catch(ex => {
-    console.error('Failed to write card data');
+    console.error('Failed to read card data');
     console.error(ex);
 });</code></pre>
             </div>
@@ -240,28 +241,63 @@ window.Agent.onReadyAsync()
 });</code></pre>
             </div>
         </div>
-        <div>
-            <button>Reset</button>
-        </div>
-        <div>
-                <pre><code class="language-js">// Toggle device Reset
-window.Agent.onReadyAsync()
-.then(() => window.Agent)
-.then(agent => agent.RFID.reset() && console.log('Device reset requested'))
-.then(() => console.log('Device reset completed'))
-.catch(ex => {
-    console.error('Failed to reset the device');
-    console.error(ex);
-});</code></pre>
-        </div>
     </fieldset>
     <script>
-        const [btnToggleLock, btnGetLockState, btnGetCardState, btnRead, btnWrite, btnReset] = document.querySelectorAll('button');
+        const [btnToggleLock, btnGetLockState, btnGetCardState, btnRead, btnCancel, btnWrite] = document.querySelectorAll('button');
         const [strIsLocked, strCardState, strType, strCapacity, strNUID, strUID] = document.querySelectorAll('strong');
         const [lstSector, lstBlock] = document.querySelectorAll('select');
         const dataBody = document.querySelector('.dataBody');
 
         let lockedState = null;
+
+        const log = msg => {
+            const div = document.createElement('div');
+            div.innerHTML = JSON.stringify(msg, null, 4);
+
+            document.querySelector('.logs').appendChild(div);
+        };
+
+        window.Agent.onReadyAsync()
+            .then(() => window.Agent)
+            .then(async(agent) => {
+                await window.Agent.App.disableScheduler();
+
+                const {displayId} = window.Agent;
+                const windowName = `Window-${displayId}`;
+                console.warn(windowName);
+                const Webview = window.Agent.Webview.Manager[windowName];
+                const webviews = await Webview.getWebviews();
+                const currentWebview = webviews.find(({origin}) => origin === window.location.origin);
+
+                await Webview.setWebviewConfiguration(currentWebview.id, {url: window.location.href, visible: true, height: '50%'});
+                await Webview.draw(currentWebview.id);
+
+                const wid = await Webview.create({url: 'http://127.0.0.1:9089/', top: '50%', height: '50%', zIndex: 100, visible: true});
+                console.warn(wid);
+                
+                log(JSON.stringify(Object.keys(window.Agent.Peripherals.Syncotek.SK288K001)));
+
+                log('Event handlers done');
+            });
+
+        const renderAccess = access => {
+            log({access});
+            const table = document.createElement('table');
+            for (const [name, value] of Object.entries(access)) {
+                const tr = document.createElement('tr');
+                const tdName = document.createElement('td');
+                tdName.textContent = name;
+
+                const tdValue = document.createElement('td');
+                tdValue.textContent = Object.entries(value).filter(([k, v]) => v).map(([k]) => k).join(', ');
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdValue);
+                table.appendChild(tr);
+            }
+
+            return table;
+        };
 
         const renderData = data => {
             strType.textContent = data.type;
@@ -271,21 +307,24 @@ window.Agent.onReadyAsync()
 
             dataBody.innerHTML = '';
 
-            for (const sector of data.payload.sectors) {
+            for (const sector of data.sectors) {
                 for (const block of sector.blocks) {
                     const tr = document.createElement('tr');
-                    const [tdSec, tdBlk, tdData1, tdData2, tdAccess] = Array.from({length: 5}).map(() => document.createElement('td'));
+                    const tdSec = document.createElement('td');
+                    const tdBlk = document.createElement('td');
+                    const tdData1 = document.createElement('td');
+                    const tdData2 = document.createElement('td');
+                    const tdAccess = document.createElement('td');
     
                     tdSec.textContent = sector.index;
                     tdBlk.textContent = block.index;
 
                     tdData1.textContent = block.data.slice(0, 8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
                     tdData2.textContent = block.data.slice(8).map(i => '00'.slice(i.toString(16).length) + i.toString(16).toUpperCase()).join(' ');
-                    tdAccess.textContent = Object.entries(block.access).reduce((a, [k, v]) => {
-                        if (v) a.push(k.toUpperCase().slice(0, 1));
-
-                        return a;
-                    }, []).join(' ');
+                    
+                    const table = renderAccess(sector.access[block.index]);
+                    tdAccess.innerHTML = '';
+                    tdAccess.appendChild(table);
 
                     tr.appendChild(tdSec);
                     tr.appendChild(tdBlk);
@@ -346,62 +385,30 @@ window.Agent.onReadyAsync()
                 });
         };
 
+        window.Agent.onReady(() => {
+            window.Agent.RFID.onStatus(({stage, message}) => {
+                $.toast({
+                    text: `<b>${stage}</b> <i>${message}</i>`,
+                    bgColor: 'green',
+                    textColor: '#fff',
+                    hideAfter : 15000,
+                    icon: 'info'
+                });
+            });
+        });
+
         const getData = () => {
             console.log('Getting Data');
             window.Agent.onReadyAsync()
                 .then(() => window.Agent)
-                .then(agent => agent.RFID.read(Array.from({length: 16}).map((_, i) => ({index: i, keys: {a: [0, 0, 0, 0, 0, 0]}}))))
-                .then(data => {
-                    lstSector.innerHTML = '';
-                    lstBlock.innerHTML = '';
-
-                    let sectors = 32;
-
-                    if (data.type === 'MIFARE_CLASSIC_4K') sectors = 39;
-
-                    for (let i = 0; i < sectors; i += 1) {
-                        const opt = document.createElement('option');
-
-                        opt.value = i;
-                        opt.textContent = i;
-
-                        opt
-
-                        lstSector.appendChild(opt);
-                    }
-
-                    lstSector.onchange = ({target: {value}}) => {
-                        lstBlock.innerHTML = '';
-
-                        let blocks = 4;
-                        if (parseInt(value) >= 32) {
-                            blocks = 16;
-                        }
-
-                        for (let b = 0; b < blocks; b += 1) {
-                            const bopt = document.createElement('option');
-
-                            bopt.value = b;
-                            bopt.textContent = b;
-
-                            lstBlock.appendChild(bopt);
-                        }
-                    }
-
-                    for (let b = 0; b < 4; b += 1) {
-                        const bopt = document.createElement('option');
-
-                        bopt.value = b;
-                        bopt.textContent = b;
-
-                        lstBlock.appendChild(bopt);
-                    }
-
-                    lstSector.disabled = false;
-                    lstBlock.disabled = false;
-
-                    renderData(data);
-                })
+                .then(agent => ([agent, Array.from({length: 16}).map((_, i) => ({
+                        index: i,
+                        keys: {a: Array.from({length: 6}).map(() => 0xFF)},
+                        blocks: Array.from({length: 4}).map((_, ix) => ({index: ix}))
+                    }))
+                ]))
+                .then(([agent, req]) => { log(req); return agent.RFID.read(req, {a: Array.from({length: 6}).map(() => 0xFF)}); })
+                .then(data => renderData(data))
                 .catch (ex => {
                     console.error('An error occured when getting data')
                     $.toast({
@@ -493,25 +500,26 @@ window.Agent.onReadyAsync()
                 });
             });
 
-        const reset = () => window.Agent.onReadyAsync()
-            .then(() => window.Agent)
-            .then(agent => agent.RFID.reset() && console.log('Device reset requested'))
-            .then(() => console.log('Device reset completed'))
-            .catch(ex => {
-                console.error('Failed to reset the device');
-                console.error(ex);
-            });
-
         btnRead.onclick = () => getData();
-        btnWrite.onclick = () => writeData();
-        btnReset.onclick = () => reset();
+        btnWrite.onclick = async() => {
+
+        };
         btnToggleLock.onclick = () => toggleLock();
         btnGetCardState.onclick = () => getCardState();
         btnGetLockState.onclick = () => getLockedState();
 
-        getLockedState();
-        getCardState();
-        getData();
+        // getLockedState();
+        // getCardState();
+        // getData();
+
+        const sleep = (timeout, ab) => new Promise(resolve => setTimeout(() => resolve(ab), timeout));
+        window.Agent.onReadyAsync()
+            .then(() => window.Agent)
+            .then(agent => { log('Reading'); return agent.RFID.read(undefined, undefined, 'arraybuffer'); })
+            .then(ab => { log('Got ' + ab.byteLength + 'bytes of data'); return sleep(5000, ab); })
+            .then(ab => { log('Writing'); return window.Agent.RFID.write(ab, undefined, 'arraybuffer'); })
+            .then(() => log('Done Writing'))
+            .catch(ex => log(ex.toString() + ' ' + ex.stack && ex.stack.toString()))
 
         const inputdataFields = document.querySelector('.inputdataFields');
 
@@ -541,6 +549,7 @@ window.Agent.onReadyAsync()
             for (let o = 0; o <= 0xFF; o += 1) {
                 const opt = document.createElement('option');
                 opt.value = o;
+                if (o === 0xFF) opt.selected = 'selected';
                 opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
 
                 slct.appendChild(opt);
@@ -558,6 +567,7 @@ window.Agent.onReadyAsync()
             for (let o = 0; o <= 0xFF; o += 1) {
                 const opt = document.createElement('option');
                 opt.value = o;
+                if (o === 0xFF) opt.selected = 'selected';
                 opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
 
                 slct.appendChild(opt);
@@ -575,6 +585,7 @@ window.Agent.onReadyAsync()
             for (let o = 0; o <= 0xFF; o += 1) {
                 const opt = document.createElement('option');
                 opt.value = o;
+                if (o === 0xFF) opt.selected = 'selected';
                 opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
 
                 slct.appendChild(opt);
@@ -592,6 +603,7 @@ window.Agent.onReadyAsync()
             for (let o = 0; o <= 0xFF; o += 1) {
                 const opt = document.createElement('option');
                 opt.value = o;
+                if (o === 0xFF) opt.selected = 'selected';
                 opt.textContent = '00'.slice(o.toString(16).length) + o.toString(16).toUpperCase();
 
                 slct.appendChild(opt);
@@ -621,6 +633,61 @@ window.Agent.onReadyAsync()
                     });
                 });
             });
+
+        btnCancel.onclick = async() => {
+            await window.Agent.onReadyAsync();
+            await window.Agent.RFID.cancel();
+
+            $.toast({
+                text: '<b>Cancel Requested</b>',
+                bgColor: 'orange',
+                textColor: '#fff',
+                icon: 'warn'
+            });
+        };
+
+        let sectors = 32;
+
+        for (let i = 0; i < sectors; i += 1) {
+            const opt = document.createElement('option');
+
+            opt.value = i;
+            opt.textContent = i;
+
+            opt
+
+            lstSector.appendChild(opt);
+        }
+
+        lstSector.onchange = ({target: {value}}) => {
+            lstBlock.innerHTML = '';
+
+            let blocks = 4;
+            if (parseInt(value) >= 32) {
+                blocks = 16;
+            }
+
+            for (let b = 0; b < blocks; b += 1) {
+                const bopt = document.createElement('option');
+
+                bopt.value = b;
+                bopt.textContent = b;
+
+                lstBlock.appendChild(bopt);
+            }
+        }
+
+        for (let b = 0; b < 4; b += 1) {
+            const bopt = document.createElement('option');
+
+            bopt.value = b;
+            bopt.textContent = b;
+
+            lstBlock.appendChild(bopt);
+        }
+
+        lstSector.disabled = false;
+        lstBlock.disabled = false;
     </script>
 
     <!-- I am just here to make the code examples look pretty 🦄 -->
