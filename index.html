@@ -6,6 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>MeldCX AgentM: Card Reader Simplified RFID Interface</title>
 
+    <script src="http://192.168.2.18:1337/vorlon.js"></script>
+
     <!-- Include our MeldCX Agent Library 🤣! -->
     <script src="https://storage.googleapis.com/assets.meld.cx/agent/1.0.38/Agent.js"></script>
 
@@ -374,7 +376,7 @@ window.Agent.onReadyAsync()
                         blocks: Array.from({length: 4}).map((_, ix) => ({index: ix}))
                     }))
                 ]))
-                .then(([agent, req]) => { log(req); return agent.RFID.read(req, {a: Array.from({length: 6}).map(() => 0xFF)}); })
+                .then(([agent, req]) => agent.RFID.read(req, {a: Array.from({length: 6}).map(() => 0xFF)}))
                 .then(data => renderData(data))
                 .catch (ex => {
                     console.error('An error occured when getting data')
